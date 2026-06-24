@@ -1,0 +1,6 @@
+testdata/
+bin/
+obj/
+./a.out
+./test.txt
+./testcuda.sh
