@@ -81,9 +81,9 @@ int main(int argc, char** argv) {
     load_matrix_from_file(filename, h_A, M);
     
     // Optional: Print small matrices
-    // printf("Matrix A:\n");
-    // printMatrix(h_A, M, M);
-    // printf("\n");
+    printf("Matrix A:\n");
+    printMatrix(h_A, M, M);
+    printf("\n");
 
     algorithm_loop(h_A, h_C, M);
 
