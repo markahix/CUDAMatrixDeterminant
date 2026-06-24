@@ -6,11 +6,11 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
     size_t sizeA = dim * dim * sizeof(DATA_TYPE);
     
     // Allocate memory on device (GPU)
-    DATA_TYPE *d_A, *d_B, *d_C;//, *host_umatrix;
+    DATA_TYPE *d_A, *d_B, *d_C, *host_umatrix;
     cudaMalloc((void**)&d_A, sizeA);
     cudaMalloc((void**)&d_B, sizeA);
     cudaMalloc((void**)&d_C, sizeA);
-    // host_umatrix = (DATA_TYPE*)malloc(sizeA);
+    host_umatrix = (DATA_TYPE*)malloc(sizeA);
     
     // Copy input matrices from host to device
     printf("Copying data from host to device...\n");
@@ -24,20 +24,26 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
         (dim + dimBlock.x - 1) / dimBlock.x, // Grid width (cols of C)
         (dim + dimBlock.y - 1) / dimBlock.y  // Grid height (rows of C)
     );
-    // GetRowColNums<<<dimGrid, dimBlock>>>(d_B,dim);
-    // cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
-    // printf("Current RowsCols:\n");
-    // printMatrix(host_umatrix, dim, dim);
-    // printf("\n");
+    GetRowColNums<<<dimGrid, dimBlock>>>(d_B,dim);
+    cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
+    printf("Current RowsCols:\n");
+    printMatrix(host_umatrix, dim, dim);
+    printf("\n");
 
     for (int i = 1; i < dim; i++)
     {
+        // Build UMatrix from d_C (first run, d_C is copy of d_A)
+        BuildUMatrixKernel<<<dimGrid, dimBlock>>>(d_C, d_B, dim);
+
         if (i%1000 == 0)
         {
             std::cout << "Beginning iteration " << i << ". " << std::endl;
+            cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
+            printf("Current u_matrix:\n");
+            printMatrix(host_umatrix, dim, dim);
+            printf("\n");
+
         }
-        // Build UMatrix from d_C (first run, d_C is copy of d_A)
-        BuildUMatrixKernel<<<dimGrid, dimBlock>>>(d_C, d_B, dim);
  
          // Matrix Multiplication of d_A and d_B into d_C.
         matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
