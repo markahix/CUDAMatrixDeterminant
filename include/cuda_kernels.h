@@ -3,7 +3,37 @@
 #include "utilities.h"
 
 
-// CUDA kernel to perform matrix multiplication
+
+__global__ void GetRowColNums(DATA_TYPE* B, int dim)
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < dim && col < dim)
+    {
+        int idx = row*dim+col;
+        if (row == col)
+        {
+            B[idx]=999.99;
+        }
+        else
+        {
+            B[idx]=row+col/100.;
+        }
+        
+    }
+}
+
+__global__ void initialize_matrix(DATA_TYPE* A,int dim)
+{
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < dim && col < dim) 
+    {
+        A[row*dim+col] = 0.0;
+    }
+    __syncthreads();
+}
+
 __global__ void matrixMulKernel(DATA_TYPE* A, DATA_TYPE* B, DATA_TYPE* C, int dim) //square matrices assumed here.
 {
     // Calculate the row and column of the C element to be computed by this thread
@@ -22,17 +52,6 @@ __global__ void matrixMulKernel(DATA_TYPE* A, DATA_TYPE* B, DATA_TYPE* C, int di
     }
     __syncthreads();
 }
-
-// __global__ void GetRowColNums(DATA_TYPE* A, DATA_TYPE* B, int dim)
-// {
-//     int row = blockIdx.y * blockDim.y + threadIdx.y;
-//     int col = blockIdx.x * blockDim.x + threadIdx.x;
-//     if (row < dim && col < dim)
-//     {
-//         int idx = row*dim+col;
-//         B[idx]=row+col/100.;
-//     }
-// }
 
 __global__ void BuildUMatrixKernel(DATA_TYPE* A, DATA_TYPE* B, int dim)
 {
