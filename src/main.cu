@@ -32,27 +32,15 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
 
     for (int i = 1; i < dim; i++)
     {
-        // Build UMatrix from d_C (first run, d_C is copy of d_A)
-        BuildUMatrixKernel<<<dimGrid, dimBlock>>>(d_C, d_B, dim);
-        // Re-empty d_C to be used for result from matrixMulKernel
-        
-        // cudaMemcpy(host_umatrix, d_C, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
-
         if (i%1000 == 0)
         {
             std::cout << "Beginning iteration " << i << ". " << std::endl;
-            // cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
-            // printf("Current UMatrix:\n");
-            // printMatrix(host_umatrix, dim, dim);
-            // printf("\n");
         }
-
-        // Matrix Multiplication of d_A and d_B into d_C.
+        // Build UMatrix from d_C (first run, d_C is copy of d_A)
+        BuildUMatrixKernel<<<dimGrid, dimBlock>>>(d_C, d_B, dim);
+ 
+         // Matrix Multiplication of d_A and d_B into d_C.
         matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
-        // cudaMemcpy(host_umatrix, d_C, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
-        // printf("Current C_Matrix:\n");
-        // printMatrix(host_umatrix, dim, dim);
-        // printf("\n");
         cudaDeviceSynchronize();
     }
     
@@ -65,9 +53,9 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
     cudaFree(d_B);
     cudaFree(d_C);
     printf("Freed DEVICE memory.\n");
-    // printf("Result of Matrix Multiplication inside algorithm loop:\n");
-    // printMatrix(h_c, dim, dim);
-    // printf("\n");
+    printf("Result of Matrix Multiplication inside algorithm loop:\n");
+    printMatrix(h_c, dim, dim);
+    printf("\n");
 
 }
 
