@@ -100,6 +100,10 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
     {
         // iterate down the matrix by row.
         // fill target_row with current row.
+        if (i%10 == 0)
+        {
+            std::cout << "Iteration "<< i <<std::endl;
+        }
         for(int j=0; j < dim; j++)
         {
             vB[j] = A[i*dim+j];
