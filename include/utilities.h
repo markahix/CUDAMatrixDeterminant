@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 #define BLOCK_SIZE 32
 typedef float DATA_TYPE;  //change only this to mess with all subsequent array and single-value datatypes.

@@ -111,5 +111,11 @@ int main(int argc, char** argv) {
     free(h_C);
 
     printf("Matrix multiplication completed and memory freed.\n");
+
+    long double entropy_value;
+
+    entropy_value = (6.903245e-24)*(log(pow(6.283185307,M)*det_value)+ M);
+    std::cout << "Calculated State Entropy Value from this covariance matrix is: " << entropy_value << std::endl;
+
     return 0;
 }
