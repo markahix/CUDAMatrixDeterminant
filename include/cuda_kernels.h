@@ -124,19 +124,19 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
     // each iteration should work through one row, moving it downward.
     for (int i=0; i < dim - 1; i++)
     {
+
+        // fill target_row with current row.
+        GenerateTargetRow<<<dimGrid, dimBlock>>>(additive_matrix, target_row, dim, i);
+
+        // fill the values of multipliers with 0.0 up to the current index
+        GenerateMultipliers<<<dimGrid, dimBlock>>>(additive_matrix, multipliers, dim, i);
+
         // iterate down the matrix by row.
         if (i%100 == 0)
         {
             std::cout << "Iteration "<< i <<std::endl;
+            // add print of target row and multipliers here to debug this on-GPU non-result problem.
         }
-
-        // fill target_row with current row.
-        GenerateTargetRow<<<dimGrid, dimBlock>>>(additive_matrix, target_row, dim, i);
-        cudaDeviceSynchronize();
-
-        // fill the values of multipliers with 0.0 up to the current index
-        GenerateMultipliers<<<dimGrid, dimBlock>>>(additive_matrix, multipliers, dim, i);
-        cudaDeviceSynchronize();
 
         // cudaMemcpy(target_row,vB,sizeV,cudaMemcpyHostToDevice);
         // cudaMemcpy(multipliers,vA,sizeV,cudaMemcpyHostToDevice);
