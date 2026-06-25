@@ -13,7 +13,7 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
     host_umatrix = (DATA_TYPE*)malloc(sizeA);
     
     // Copy input matrices from host to device
-    printf("Copying data from host to device...\n");
+    // printf("Copying data from host to device...\n");
     cudaMemcpy(d_A, h_a, sizeA, cudaMemcpyHostToDevice);
     cudaMemcpy(d_C, h_a, sizeA, cudaMemcpyHostToDevice); 
         // original matrix copied into d_C to make the loop below easier and more efficient
@@ -24,11 +24,11 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
         (dim + dimBlock.x - 1) / dimBlock.x, // Grid width (cols of C)
         (dim + dimBlock.y - 1) / dimBlock.y  // Grid height (rows of C)
     );
-    GetRowColNums<<<dimGrid, dimBlock>>>(d_B,dim);
-    cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
-    printf("Current RowsCols:\n");
-    printMatrix(host_umatrix, dim, dim);
-    printf("\n");
+    // GetRowColNums<<<dimGrid, dimBlock>>>(d_B,dim);
+    // cudaMemcpy(host_umatrix, d_B, sizeA, cudaMemcpyDeviceToHost); // checking the status of UMatrix at each iteration.
+    // printf("Current RowsCols:\n");
+    // printMatrix(host_umatrix, dim, dim);
+    // printf("\n");
 
     for (int i = 1; i < dim; i++)
     {
@@ -46,7 +46,8 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
         }
  
          // Matrix Multiplication of d_A and d_B into d_C.
-        matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
+        // matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
+        matmulTiled<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim);
         cudaDeviceSynchronize();
     }
     
@@ -58,7 +59,7 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
-    printf("Freed DEVICE memory.\n");
+    // printf("Freed DEVICE memory.\n");
     printf("Result of Matrix Multiplication inside algorithm loop:\n");
     printMatrix(h_c, dim, dim);
     printf("\n");

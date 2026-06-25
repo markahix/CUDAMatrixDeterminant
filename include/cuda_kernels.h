@@ -4,24 +4,24 @@
 
 
 
-__global__ void GetRowColNums(DATA_TYPE* B, int dim)
-{
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    if (row < dim && col < dim)
-    {
-        int idx = row*dim+col;
-        if (row == col)
-        {
-            B[idx]=999.99;
-        }
-        else
-        {
-            B[idx]=row+col/100.;
-        }
+// __global__ void GetRowColNums(DATA_TYPE* B, int dim)
+// {
+//     int row = blockIdx.y * blockDim.y + threadIdx.y;
+//     int col = blockIdx.x * blockDim.x + threadIdx.x;
+//     if (row < dim && col < dim)
+//     {
+//         int idx = row*dim+col;
+//         if (row == col)
+//         {
+//             B[idx]=999.99;
+//         }
+//         else
+//         {
+//             B[idx]=row+col/100.;
+//         }
         
-    }
-}
+//     }
+// }
 
 __global__ void initialize_matrix(DATA_TYPE* A,int dim)
 {
@@ -83,7 +83,35 @@ __global__ void BuildUMatrixKernel(DATA_TYPE* A, DATA_TYPE* B, int dim)
 }
 
 
+#define TILE_WIDTH 16
 
+__global__ void matmulTiled(DATA_TYPE* A, DATA_TYPE* B, DATA_TYPE* C, int width) {
+    __shared__ DATA_TYPE tileA[TILE_WIDTH][TILE_WIDTH];   // fast scratchpad
+    __shared__ DATA_TYPE tileB[TILE_WIDTH][TILE_WIDTH];
+
+    int tx = threadIdx.x, ty = threadIdx.y;
+    int row = blockIdx.y * TILE_WIDTH + ty;
+    int col = blockIdx.x * TILE_WIDTH + tx;
+
+    DATA_TYPE sum = 0.0f;
+
+    for (int phase = 0; phase < width / TILE_WIDTH; ++phase) {
+        // 1. Load: my row fixed, column slides with phase (A walks right)
+        tileA[ty][tx] = A[row * width + (phase * TILE_WIDTH + tx)];
+        // my col fixed, row slides with phase (B walks down)
+        tileB[ty][tx] = B[(phase * TILE_WIDTH + ty) * width + col];
+
+        __syncthreads();   // 2. wait: whole tile loaded before anyone reads
+
+        // 3. Partial dot product over the tile in fast shared memory
+        for (int k = 0; k < TILE_WIDTH; ++k)
+            sum += tileA[ty][k] * tileB[k][tx];
+
+        __syncthreads();   // 4. wait: everyone done before tile is overwritten
+    }
+
+    C[row * width + col] = sum;
+}
 // __global__ void CUDA_ArraySumKernel(DATA_TYPE* array, DATA_TYPE* result, int dim)
 // {
 //     // My incoming dimensionality will be BLOCK_SIZE x BLOCK_SIZE threads
