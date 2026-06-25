@@ -2,27 +2,6 @@
 #define CUDA_KERNELS_H
 #include "utilities.h"
 
-
-
-// __global__ void GetRowColNums(DATA_TYPE* B, int dim)
-// {
-//     int row = blockIdx.y * blockDim.y + threadIdx.y;
-//     int col = blockIdx.x * blockDim.x + threadIdx.x;
-//     if (row < dim && col < dim)
-//     {
-//         int idx = row*dim+col;
-//         if (row == col)
-//         {
-//             B[idx]=999.99;
-//         }
-//         else
-//         {
-//             B[idx]=row+col/100.;
-//         }
-        
-//     }
-// }
-
 __global__ void initialize_matrix(DATA_TYPE* A,int dim)
 {
     int row = blockIdx.y * blockDim.y + threadIdx.y;
@@ -82,71 +61,87 @@ __global__ void BuildUMatrixKernel(DATA_TYPE* A, DATA_TYPE* B, int dim)
     __syncthreads();
 }
 
-
-#define TILE_WIDTH 16
-
-__global__ void matmulTiled(DATA_TYPE* A, DATA_TYPE* B, DATA_TYPE* C, int width) {
-    __shared__ DATA_TYPE tileA[TILE_WIDTH][TILE_WIDTH];   // fast scratchpad
-    __shared__ DATA_TYPE tileB[TILE_WIDTH][TILE_WIDTH];
-
-    int tx = threadIdx.x, ty = threadIdx.y;
-    int row = blockIdx.y * TILE_WIDTH + ty;
-    int col = blockIdx.x * TILE_WIDTH + tx;
-
-    DATA_TYPE sum = 0.0f;
-
-    for (int phase = 0; phase < width / TILE_WIDTH; ++phase) {
-        // 1. Load: my row fixed, column slides with phase (A walks right)
-        tileA[ty][tx] = A[row * width + (phase * TILE_WIDTH + tx)];
-        // my col fixed, row slides with phase (B walks down)
-        tileB[ty][tx] = B[(phase * TILE_WIDTH + ty) * width + col];
-
-        __syncthreads();   // 2. wait: whole tile loaded before anyone reads
-
-        // 3. Partial dot product over the tile in fast shared memory
-        for (int k = 0; k < TILE_WIDTH; ++k)
-            sum += tileA[ty][k] * tileB[k][tx];
-
-        __syncthreads();   // 4. wait: everyone done before tile is overwritten
+__global__ void AdditiveMatrix(DATA_TYPE* vA, DATA_TYPE* vB, DATA_TYPE* mC, int dim)
+{
+    //vA is the target row from the original matrix, vB is the multipliers.
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < dim && col < dim)
+    {
+        mC[row * dim + col] += vA[col] * vB[row];
     }
-
-    C[row * width + col] = sum;
 }
-// __global__ void CUDA_ArraySumKernel(DATA_TYPE* array, DATA_TYPE* result, int dim)
-// {
-//     // My incoming dimensionality will be BLOCK_SIZE x BLOCK_SIZE threads
-//     // So I can have shared memory in this block of BLOCK_SIZE elements.
-//     __shared__ DATA_TYPE shared_data[BLOCK_SIZE];
+
+
+void TriangularizeMatrix(DATA_TYPE* A, int dim)
+{
+    size_t sizeM = dim*dim*sizeof(DATA_TYPE);
+    size_t sizeV = dim*sizeof(DATA_TYPE);
     
-//     // Initialize each element to zero first.
-//     int thread_id = threadIdx.y;
-//     shared_data[thread_id]=0;
-//     __syncthreads();
+    DATA_TYPE* multipliers, *additive_matrix, *target_row;
+    DATA_TYPE* vA, *vB;
+
+    // allocate memory on host and device.
+    vA = (DATA_TYPE*)malloc(sizeV);
+    vB = (DATA_TYPE*)malloc(sizeV);
+    cudaMalloc((void**)&multipliers, sizeV);
+    cudaMalloc((void**)&additive_matrix, sizeM);
+    cudaMalloc((void**)&target_row, sizeV);
+    cudaMemcpy(additive_matrix,A,sizeM,cudaMemcpyHostToDevice);
+
+    dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 dimGrid(
+        (dim + dimBlock.x - 1) / dimBlock.x, // Grid width (cols of C)
+        (dim + dimBlock.y - 1) / dimBlock.y  // Grid height (rows of C)
+    );
+
+    // each iteration should work through one row, moving it downward.
+    for (int i=0; i < dim - 1; i++)
+    {
+        // iterate down the matrix by row.
+        // fill target_row with current row.
+        for(int j=0; j < dim; j++)
+        {
+            vB[j] = A[i*dim+j];
+        }
+
+        // fill the values of multipliers with 0.0 up to the current index
+        for (int j = 0; j <= i; j++)
+        {
+            vA[j] = 0.0;
+        }
+
+        for (int j = i+1; j < dim; j++)
+        {
+            // generate multipliers for each row n after i.
+            vA[j] = -A[j*dim + i]/A[i*dim+i];
+        }
+        // generate additive matrix from the target row and the multipliers.
+        // // print target_row
+        // std::cout << "target row"<<std::endl;
+        // for (int q = 0; q < dim; q++)
+        // {
+        //     std::cout << vB[q]<< " ";
+        // }
+        // std::cout << std::endl << std::endl;
+        // std::cout << "multipliers"<<std::endl;
+        // for (int q = 0; q < dim; q++)
+        // {
+        //     std::cout << vA[q]<< " ";
+        // }
+        // std::cout << std::endl << std::endl;
+
+        // print multipliers
+
+
+        cudaMemcpy(target_row,vB,sizeV,cudaMemcpyHostToDevice);
+        cudaMemcpy(multipliers,vA,sizeV,cudaMemcpyHostToDevice);
+        AdditiveMatrix<<<dimGrid, dimBlock>>>(target_row, multipliers, additive_matrix, dim);
+        cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+    }
     
-//     // All the threads have caught up after initializing the shared memory to zero.
-//     int row = blockDim.y * blockIdx.y + threadIdx.y;
-//     int col = blockDim.x * blockIdx.x + threadIdx.x;
-    
-//     // moving across a row in the array, add the value of each column in that row to the shared_memory element of that row
-//     if (row < dim && col < dim) 
-//     {
-//         shared_data[thread_id] += array[row * dim + col];
-//     }
-//     __syncthreads();
-    
-//     // Combine all shared_data values into first element.
-//     if (thread_id==0)
-//     {
-//         for (int i=1; i < BLOCK_SIZE;i++)
-//         {
-//             shared_data[0] += shared_data[i];
-//         }
-//         atomicAdd(result, shared_data[0]);
-//     }
-//     __syncthreads();
-//     // Add shared_data[0] to result via atomicAdd.
-    
-// }
+}
 
 #endif
 

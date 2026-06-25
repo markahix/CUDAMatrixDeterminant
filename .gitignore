@@ -5,3 +5,4 @@ a.out
 test.txt
 testcuda.sh
 testcuda.sh
+*.ipynb

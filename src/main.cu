@@ -47,7 +47,6 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
  
          // Matrix Multiplication of d_A and d_B into d_C.
         matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
-        // matmulTiled<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim);
         cudaDeviceSynchronize();
     }
     
@@ -91,12 +90,20 @@ int main(int argc, char** argv) {
     printf("Matrix A:\n");
     printMatrix(h_A, M, M);
     printf("\n");
-
-    algorithm_loop(h_A, h_C, M);
+    TriangularizeMatrix(h_A, M);
+    // algorithm_loop(h_A, h_C, M);
 
     // Step 8: Print the result (optional for small matrices)
-    printf("Result of Matrix Multiplication: %f\n",h_C[0]);
-    // printMatrix(h_C, M, M);
+    // printf("Result of Matrix Multiplication: %f\n",h_C[0]);
+    printf("Result of Matrix Triangularization:\n");
+    printMatrix(h_A, M, M);
+
+    DATA_TYPE det_value=1.0;
+    for (int i=0; i < M; i++)
+    {
+        det_value*= h_A[i*M+i];
+    }
+    std::cout << "Final determinant is " << det_value << std::endl;
     // printf("\n");
 
     // Step 10: Free host memory
