@@ -72,6 +72,32 @@ __global__ void AdditiveMatrix(DATA_TYPE* vA, DATA_TYPE* vB, DATA_TYPE* mC, int 
     }
 }
 
+__global__ void GenerateMultipliers(DATA_TYPE* A, DATA_TYPE* multipliers, int dim, int i)
+{
+    int row = blockIdx.y*blockDim.y + threadIdx.y;
+    if (row << dim)
+    {
+        if (row <=i)
+        {
+            multipliers[row] = 0.0;
+        }
+        else
+        {
+            multipliers[row] = -A[row*dim + i]/A[i*dim+i];
+        }
+    }
+}
+
+__global__ void GenerateTargetRow(DATA_TYPE* A, DATA_TYPE* target_row, int dim, int i)
+{
+    int col = blockIdx.x*blockDim.x + threadIdx.x;
+    if (col << dim)
+    {
+        target_row[col] = A[i*dim + col];
+    }
+}
+
+
 
 void TriangularizeMatrix(DATA_TYPE* A, int dim)
 {
@@ -99,51 +125,27 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
     for (int i=0; i < dim - 1; i++)
     {
         // iterate down the matrix by row.
-        // fill target_row with current row.
         if (i%10 == 0)
         {
             std::cout << "Iteration "<< i <<std::endl;
         }
-        for(int j=0; j < dim; j++)
-        {
-            vB[j] = A[i*dim+j];
-        }
+
+        // fill target_row with current row.
+        GenerateTargetRow<<<dimGrid, dimBlock>>>(additive_matrix, target_row, dim, i);
+        cudaDeviceSynchronize();
 
         // fill the values of multipliers with 0.0 up to the current index
-        for (int j = 0; j <= i; j++)
-        {
-            vA[j] = 0.0;
-        }
-
-        for (int j = i+1; j < dim; j++)
-        {
-            // generate multipliers for each row n after i.
-            vA[j] = -A[j*dim + i]/A[i*dim+i];
-        }
-        // generate additive matrix from the target row and the multipliers.
-        // // print target_row
-        // std::cout << "target row"<<std::endl;
-        // for (int q = 0; q < dim; q++)
-        // {
-        //     std::cout << vB[q]<< " ";
-        // }
-        // std::cout << std::endl << std::endl;
-        // std::cout << "multipliers"<<std::endl;
-        // for (int q = 0; q < dim; q++)
-        // {
-        //     std::cout << vA[q]<< " ";
-        // }
-        // std::cout << std::endl << std::endl;
-
-        // print multipliers
-
-
-        cudaMemcpy(target_row,vB,sizeV,cudaMemcpyHostToDevice);
-        cudaMemcpy(multipliers,vA,sizeV,cudaMemcpyHostToDevice);
-        AdditiveMatrix<<<dimGrid, dimBlock>>>(target_row, multipliers, additive_matrix, dim);
-        cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
+        GenerateMultipliers<<<dimGrid, dimBlock>>>(additive_matrix, multipliers, dim, i);
         cudaDeviceSynchronize();
+
+        // cudaMemcpy(target_row,vB,sizeV,cudaMemcpyHostToDevice);
+        // cudaMemcpy(multipliers,vA,sizeV,cudaMemcpyHostToDevice);
+        AdditiveMatrix<<<dimGrid, dimBlock>>>(target_row, multipliers, additive_matrix, dim);
+        cudaDeviceSynchronize();
+
+        // cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
     }
+    cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
     
 }
 
