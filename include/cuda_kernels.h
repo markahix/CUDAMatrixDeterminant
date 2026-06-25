@@ -105,11 +105,11 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
     size_t sizeV = dim*sizeof(DATA_TYPE);
     
     DATA_TYPE* multipliers, *additive_matrix, *target_row;
-    DATA_TYPE* vA, *vB;
+    // DATA_TYPE* vA, *vB;
 
     // allocate memory on host and device.
-    vA = (DATA_TYPE*)malloc(sizeV);
-    vB = (DATA_TYPE*)malloc(sizeV);
+    // vA = (DATA_TYPE*)malloc(sizeV);
+    // vB = (DATA_TYPE*)malloc(sizeV);
     cudaMalloc((void**)&multipliers, sizeV);
     cudaMalloc((void**)&additive_matrix, sizeM);
     cudaMalloc((void**)&target_row, sizeV);
@@ -125,7 +125,7 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
     for (int i=0; i < dim - 1; i++)
     {
         // iterate down the matrix by row.
-        if (i%10 == 0)
+        if (i%100 == 0)
         {
             std::cout << "Iteration "<< i <<std::endl;
         }
@@ -146,7 +146,9 @@ void TriangularizeMatrix(DATA_TYPE* A, int dim)
         // cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
     }
     cudaMemcpy(A,additive_matrix,sizeM,cudaMemcpyDeviceToHost);
-    
+    cudaFree(additive_matrix);
+    cudaFree(multipliers);
+    cudaFree(target_row);
 }
 
 #endif
