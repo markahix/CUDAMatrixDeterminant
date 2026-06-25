@@ -46,8 +46,8 @@ void algorithm_loop(DATA_TYPE* h_a, DATA_TYPE* h_c, int dim)
         }
  
          // Matrix Multiplication of d_A and d_B into d_C.
-        // matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
-        matmulTiled<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim);
+        matrixMulKernel<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim); // multiply d_A and d_B, storing result in d_C.
+        // matmulTiled<<<dimGrid, dimBlock>>>(d_B, d_A, d_C, dim);
         cudaDeviceSynchronize();
     }
     
